@@ -430,59 +430,53 @@ disp("Steady-state tank heights (cm):");
 disp(H_ss);
 
 %% sim and plot step responses
-step_sizes = [0.05, 0.10, 0.25]; % Step sizes for F1 increase
-for step_size = step_sizes
-    F1_step = F1s * (1 + step_size); % New flow rate for pump 1 after step increase
-    u_step = [F1_step; F2s]; % Input vector after step increase
+% PART 1: Deterministic open-loop step responses
 
-    % Simulate the system response to the step input
-    [T_step, X_step] = ode15s(@(t, x) QuadrupleTankProcess(t, x, u_step, p_vector), [t_0 t_f], x_ss);
+step_sizes = [0.10, 0.25, 0.50]; %steps
+pump_steady = [F1s; F2s]; %initialize start states
 
-    % Compute tank heights from mass
-    nx = 4; % Number of tanks
-    A = p_vector(5:8,1)'; % Tank cross sectional areas [cm^2]
-    H_step = zeros(length(T_step), nx);
-    for i = 1:length(T_step)
-        H_step(i,:) = X_step(i,:)./(p.rho*A_lAin);
-    end
+A_tank = p_vector(5:8,1)';
 
-    % plot the tank heights 3, 4, 1, 2 in cm over minutes, all sizes in one figure
-    figure(3);
-    clf(3);
-    sgtitle("Tank Heights for F1 Step Increases");
+% Simulation time
+t_step = (0:10:t_f)';
 
-    tankOrder = [3 4 1 2];
+% Simulate both manipulated variables separately
+for pump = 1:2
 
-    for plotIndex = 1:4
-        subplot(2, 2, plotIndex);
+    figure;
+    tiledlayout(2,2);
+    sgtitle(sprintf('Deterministic step responses: Pump F %d', pump));
+
+    for tank = 1:4 % loop through the 4 tankss
+        nexttile;
         hold on;
         grid on;
 
-        tankIndex = tankOrder(plotIndex);
+        for step_size = step_sizes % simulate each tank
 
-        for step_size = step_sizes
-            F1_step = F1s * (1 + step_size);
-            u_step = [F1_step; F2s];
+            % Start from the steady-state input
+            u_step = pump_steady;
 
+            % Increase only the selected pump
+            u_step(pump) = pump_steady(pump) * (1 + step_size);
+
+            % Simulate nonlinear model from steady state
             [T_step, X_step] = ode15s( ...
-                @(t, x) QuadrupleTankProcess(t, x, u_step, p_vector), ...
-                [t_0 t_f], ...
-                x_ss);
+                @(t,x) QuadrupleTankProcess(t,x,u_step,p_vector), ...
+                t_step, x_ss);
 
-            A = p_vector(5:8, 1)';
-            H_step = X_step ./ (p.rho * A);
+            % Convert tank mass to tank height
+            H_step = X_step ./ (p.rho * A_tank);
 
-            plot( ...
-                T_step / 60, ...
-                H_step(:, tankIndex), ...
-                "LineWidth", 1.5, ...
-                "DisplayName", sprintf("F1 + %.0f%%", 100 * step_size));
+            plot(T_step/60, H_step(:,tank), ...
+                'LineWidth', 1.5, ...
+                'DisplayName', sprintf('+%.0f%%',100*step_size));
         end
 
-        xlabel("Time [min]");
-        ylabel(sprintf("Tank %d Height [cm]", tankIndex));
-        title(sprintf("Tank %d", tankIndex));
-        legend("Location", "best");
+        xlabel('Time [min]');
+        ylabel(sprintf('Tank %d height [cm]',tank));
+        title(sprintf('Tank %d',tank));
+        legend('Location','best');
     end
 end
 
