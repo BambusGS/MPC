@@ -1,8 +1,6 @@
 %% Setup
 % Problem 5 uses the identified models of Problem 4 (step_sizes, estimated_params, G_final).
 % Run problem4_main.m first; this script does not clear the workspace.
-assert(exist("estimated_params", "var") && exist("G_final", "var"), ...
-    "Run problem4_main.m first: its results are needed for 5.3 and 5.5.");
 
 addpath(fullfile(fileparts(mfilename("fullpath")), "functions"));
 % Standalone script for Problem 5, to be merged into main.m later.
