@@ -1,7 +1,8 @@
 %% Setup
-clear;
-clc;
-close all;
+% Problem 5 uses the identified models of Problem 4 (step_sizes, estimated_params, G_final).
+% Run problem4_main.m first; this script does not clear the workspace.
+assert(exist("estimated_params", "var") && exist("G_final", "var"), ...
+    "Run problem4_main.m first: its results are needed for 5.3 and 5.5.");
 
 addpath(fullfile(fileparts(mfilename("fullpath")), "functions"));
 % Standalone script for Problem 5, to be merged into main.m later.
@@ -20,14 +21,19 @@ aug = computeAugmentedModel(lin, p);                   % SDE model with disturba
 trf = computeTransferFunctions(lin, p);
 
 % 5.3 Comparison with the models identified from step responses (Problem 4)
-% TODO: take these from the Problem 4 results struct once merged into main.m
-ident.stepSizes = [0.10 0.25 0.50];
-ident.K = cat(3, [0.133583 0.065897;  0.118061 0.20865],  ...
-                 [0.139018 0.067275;  0.120523 0.216012], ...
-                 [0.148062 0.0695735; 0.124635 0.228254]);
-ident.T = {{85.6347, [85.4530 35.9792]; [115.362 56.0529], 114.452}, ...
-           {90.6103, [90.1486 35.9275]; [122.356 55.3614], 120.191}, ...
-           {98.9596, [98.0254 35.8703]; [133.882 54.4624], 129.790}};
+% estimated_params(tank, pump, :, step) = [K, Tmain, Textra], with Textra = 0 on the diagonal
+ident.stepSizes = step_sizes;
+ident.K = squeeze(estimated_params(:, :, 1, :));
+ident.T = cell(1, numel(step_sizes));
+for s = 1:numel(step_sizes)
+    ident.T{s} = cell(2);
+    for i = 1:2
+        for j = 1:2
+            T = squeeze(estimated_params(i, j, 2:3, s)).';
+            ident.T{s}{i, j} = T(T > 0);
+        end
+    end
+end
 
 cmp = compareIdentifiedModel(trf, ident);
 disp(cmp);
@@ -40,20 +46,9 @@ nMarkov = 90; % 90*Ts = 15 min
 H = computeMarkovParameters(disc.det.A, disc.det.B, disc.det.C, nMarkov);
 
 % Markov parameters of the identified models from Problem 4
-% TODO: take G_final from Problem 4 once merged into main.m
-Hid = cell(1, 3);
-for s = 1:3
-    G = tf(zeros(2));
-    for i = 1:2
-        for j = 1:2
-            den = 1;
-            for T = ident.T{s}{i, j}
-                den = conv(den, [T 1]);
-            end
-            G(i, j) = tf(ident.K(i, j, s), den);
-        end
-    end
-    [A, B, C] = ssdata(c2d(ss(G), sim.Ts, "zoh"));
+Hid = cell(1, numel(G_final));
+for s = 1:numel(G_final)
+    [A, B, C] = ssdata(c2d(ss(G_final{s}), sim.Ts, "zoh"));
     Hid{s} = computeMarkovParameters(A, B, C, nMarkov);
 end
 
