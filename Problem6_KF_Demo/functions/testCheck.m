@@ -1,5 +1,5 @@
 function [nPass, nTest] = testCheck(ok, message, nPass, nTest)
-    % Print PASS/FAIL for one check of testKalmanFilter.m and count it
+% TESTCHECK  Print PASS/FAIL for one check.
     nTest = nTest + 1;
     if ok
         nPass = nPass + 1;

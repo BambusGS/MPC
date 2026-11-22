@@ -1,7 +1,5 @@
 function detectable = isDetectable(A, C)
-    % PBH test: (C, A) is detectable if rank([lambda*I - A; C]) = n for every
-    % eigenvalue lambda of A with |lambda| >= 1 (including the integrators).
-
+% ISDETECTABLE  PBH detectability test of the pair (C, A).
     n = size(A, 1);
     lambda = eig(A);
     detectable = true;
