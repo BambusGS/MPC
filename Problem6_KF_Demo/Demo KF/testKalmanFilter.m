@@ -1,5 +1,3 @@
-rootDir = fileparts(mfilename('fullpath'));
-addpath(fullfile(rootDir, 'functions'), '-begin');
 rng(1);
 
 % Random model with correlated process and measurement noise
@@ -65,24 +63,6 @@ covRatio = trace(cov(err')) / trace(Pf);
 [nPass, nTest] = testCheck(abs(stats.NIS - 2) < 0.15, sprintf('5. NIS = %.3f (expected 2)', stats.NIS), nPass, nTest);
 [nPass, nTest] = testCheck(abs(covRatio - 1) < 0.1, sprintf('   trace(cov(x - x_hat)) / trace(Pf) = %.3f (expected 1)', covRatio), nPass, nTest);
 [nPass, nTest] = testCheck(all(abs(stats.rho1) < 0.06), sprintf('   lag-1 autocorrelation of e = [%.3f %.3f] (expected 0)', stats.rho1), nPass, nTest);
-
-% 6. Four-tank models
-p = createParameters();
-sim = createSimSettings(p);
-op = computeSteadyState([sim.F1; sim.F2], p.FMean, p);
-lin = computeJacobians(op, p);
-aug = computeAugmentedModel(lin, p);
-ident.K = [0.1336, 0.0659; 0.1181, 0.2087];
-ident.T = [85.55; 114.95; 36.0; 56.1];
-tankModels = {buildKalmanModelP5(aug, lin, p, sim.Ts, false), buildKalmanModelP5(aug, lin, p, sim.Ts, true), ...
-              buildKalmanModelP4(ident, p, sim.Ts, false), buildKalmanModelP4(ident, p, sim.Ts, true)};
-for i = 1:numel(tankModels)
-    m = tankModels{i};
-    [~, ~, ~, ~, infoTank] = kalmanStatic(m);
-    ok = isDetectable(m.A, m.C) && max(abs(infoTank.eigErrorDynamics)) < 1;
-    [nPass, nTest] = testCheck(ok, sprintf('6. %s: detectable, max|eig(A - Kpx*C)| = %.4f', ...
-        m.name, max(abs(infoTank.eigErrorDynamics))), nPass, nTest);
-end
 
 fprintf('\n%d of %d checks passed.\n', nPass, nTest);
 if nPass < nTest

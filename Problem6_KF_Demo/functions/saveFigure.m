@@ -1,7 +1,5 @@
 function saveFigure(fig, savePath, plotTitle)
-    % Add the figure title and save the figure
-    % (sgtitle/exportgraphics in MATLAB, annotation/print as fallback in Octave)
-
+% SAVEFIGURE  Add a figure title and save the figure.
     if nargin >= 3 && ~isempty(plotTitle)
         if exist('sgtitle', 'file') || exist('sgtitle', 'builtin')
             sgtitle(fig, char(plotTitle));

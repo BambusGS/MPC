@@ -1,45 +1,10 @@
+%% 
 function result = kalmanFilter(model, y, u, filterType, x0, P0)
-    % Generic discrete-time Kalman filter, static or dynamic
-    %
-    % Works for ANY linear model given as a structure (lecture 6, slides 19-23):
-    %   x(k+1) = A*x(k) + B*u(k) + G*w(k)
-    %   y(k)   = C*x(k) + v(k)
-    %   [w; v] ~ N(0, [Q S; S' R])      (S = cross-covariance, default 0)
-    %
-    % Dynamic filter (time-varying gain):
-    %   Innovation:          e = y - C*xp,           Re = C*P*C' + R
-    %   Gains:               Kfx = P*C'/Re,          Kfw = S/Re
-    %   Measurement update:  xf = xp + Kfx*e,        wf = Kfw*e
-    %                        Pf = P - Kfx*Re*Kfx',   Qf = Q - Kfw*Re*Kfw'
-    %   Time update:         xp+ = A*xf + B*u + G*wf
-    %                        P+  = A*Pf*A' + G*Qf*G' - A*Kfx*S'*G' - G*S*Kfx'*A'
-    % Static filter: the same equations with the constant gains from
-    % kalmanStatic() (solution of the discrete algebraic Riccati equation).
-    %
-    % Inputs:
-    %   model: Structure with the fields
-    %       A, C, Q, R            (required)
-    %       B                     (optional, default: no input)
-    %       G                     (optional, default: identity)
-    %       S                     (optional, default: zeros)
-    %       P0                    (optional, default: identity)
-    %   y: ny x N measurements
-    %   u: nu x N inputs ([] if the model has no input)
-    %   filterType: 'dynamic' or 'static'
-    %   x0: x_hat(0|-1) (optional, default: zeros)
-    %   P0: P(0|-1)     (optional, default: model.P0)
-    %
-    % Output:
-    %   result: Structure with the fields
-    %       xf:  Filtered states x_hat(k|k), n x N
-    %       xp:  One-step predictions x_hat(k|k-1), n x N
-    %       wf:  Filtered process noise w_hat(k|k), nw x N
-    %       e:   Innovations, ny x N
-    %       Re:  Innovation covariances, ny x ny x N
-    %       K:   Filter gains Kfx, n x ny x N
-    %       sdf: Standard deviations of x_hat(k|k), sqrt(diag(Pf)), n x N
-    %       sdp: Standard deviations of x_hat(k|k-1), sqrt(diag(P)), n x N
-
+    if nargin < 4
+        fprintf('Usage: result = kalmanFilter(model, y, u, ''dynamic'' or ''static''). Run demoKalmanFilter for an example.\n');
+        if nargout > 0, result = []; end
+        return
+    end
     model = completeModel(model);
     n = size(model.A, 1);
     ny = size(model.C, 1);
