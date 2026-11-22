@@ -1,0 +1,25 @@
+scenario,plant,model,filter,RMSE_transient_cm,RMSE_h1_cm,RMSE_h2_cm,offset_h1_cm,mean_e1_cm,mean_e2_cm,NIS
+nostep,linear,Problem 5 model (6 states),dynamic,0.5664,0.4940,0.5008,-0.0921,-0.0513,-0.1230,1.868
+nostep,linear,Problem 5 model (6 states),static,0.7982,0.4940,0.5007,-0.0921,-0.0513,-0.1230,1.868
+nostep,linear,Problem 4 model (4 states),dynamic,0.5679,0.5582,0.5905,-0.1515,-0.1267,-0.2216,2.284
+nostep,linear,Problem 4 model (4 states),static,0.9834,0.5582,0.5906,-0.1515,-0.1267,-0.2215,2.284
+nostep,nonlinear,Problem 5 model (6 states),dynamic,0.5665,0.4985,0.4992,-0.0990,-0.0399,-0.1192,1.868
+nostep,nonlinear,Problem 5 model (6 states),static,0.7953,0.4985,0.4992,-0.0990,-0.0399,-0.1192,1.868
+nostep,nonlinear,Problem 4 model (4 states),dynamic,0.5696,0.5673,0.5861,-0.1657,-0.1063,-0.2148,2.284
+nostep,nonlinear,Problem 4 model (4 states),static,0.9810,0.5673,0.5861,-0.1657,-0.1063,-0.2148,2.284
+step,linear,Problem 5 model (6 states),dynamic,0.5664,0.8265,0.5008,-0.8988,0.6298,-0.1230,2.393
+step,linear,Problem 5 model (6 states),static,0.7982,0.8265,0.5007,-0.8988,0.6298,-0.1230,2.393
+step,linear,Problem 5 model (8 states),dynamic,0.6299,0.5687,0.5064,-0.0932,0.1369,-0.0059,1.879
+step,linear,Problem 5 model (8 states),static,0.8176,0.5640,0.5068,-0.0931,0.1197,-0.0181,1.881
+step,linear,Problem 4 model (4 states),dynamic,0.5679,1.4018,0.5905,-1.7987,1.0860,-0.2216,4.138
+step,linear,Problem 4 model (4 states),static,0.9834,1.4018,0.5906,-1.7987,1.0860,-0.2215,4.138
+step,linear,Problem 4 model (6 states),dynamic,0.6623,0.6358,0.5395,-0.0860,0.1287,-0.0012,2.174
+step,linear,Problem 4 model (6 states),static,0.9727,0.6344,0.5382,-0.0860,0.1189,-0.0075,2.175
+step,nonlinear,Problem 5 model (6 states),dynamic,0.5665,0.8729,0.4992,-0.9753,0.6958,-0.1192,2.493
+step,nonlinear,Problem 5 model (6 states),static,0.7953,0.8729,0.4992,-0.9753,0.6958,-0.1192,2.492
+step,nonlinear,Problem 5 model (8 states),dynamic,0.6307,0.5740,0.5050,-0.0966,0.1474,-0.0053,1.883
+step,nonlinear,Problem 5 model (8 states),static,0.8149,0.5694,0.5054,-0.0965,0.1305,-0.0174,1.885
+step,nonlinear,Problem 4 model (4 states),dynamic,0.5696,1.5115,0.5861,-1.9562,1.2031,-0.2148,4.505
+step,nonlinear,Problem 4 model (4 states),static,0.9810,1.5115,0.5861,-1.9562,1.2031,-0.2148,4.505
+step,nonlinear,Problem 4 model (6 states),dynamic,0.6649,0.6478,0.5359,-0.0898,0.1394,-0.0007,2.186
+step,nonlinear,Problem 4 model (6 states),static,0.9700,0.6465,0.5346,-0.0898,0.1298,-0.0069,2.187
