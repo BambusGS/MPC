@@ -44,6 +44,9 @@ plotTankHeights("Problem 2: SDE Disturbances - Tank Heights", sde.t, sdeHeights,
 plotPumpFlow("Problem 2: SDE Disturbances - Pump Inputs", sim.t, sim.input, "figures/problem2_sde_inputs.png", {"F1", "F2"});
 plotPumpFlow("Problem 2: SDE Disturbances - Disturbance Flows", sde.t, sde.d.', "figures/problem2_sde_disturbances.png", {"F3", "F4"});
 
+%% Problem 6, simulate four-tank systems with kalman filters
+
+
 %% Problem 7, simple known quadratic program (QP) solver test
 
 % Solve: Quadratic Minimization with Linear Constraints and Bounds [MATLAB example]
