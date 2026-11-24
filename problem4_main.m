@@ -247,7 +247,7 @@ for pump = 1:2
 end
 
         
-% Plot determanistic
+% Plot deterministic
 
 for pump = 1:2
 
@@ -357,164 +357,193 @@ disp(K_mean);
 
 % Fit transfer functions using the structure from the lecture
 
-% Store estimated parameters:
-% Diagonal:     [K, T]
-% Off-diagonal: [K, Tmain, Textra]
-estimated_params = zeros(2,2,3,3);
+% Parameter order:
+% [K11, K12, K21, K22, T1, T2, T3, T4]
+
+estimated_params_shared = zeros(8,3);
 
 % Time vector in seconds
 t = step_results{1,1}.t;
 
-% Fit all four input-output relationships
-for pump = 1:2
-    for tank = 1:2
-        for i = 1:3
+% Initial parameter estimates
+initial_guess = [0.14, 0.068, 0.12, 0.22, 85, 115, 40, 55];
 
-            y_fit_data = norm_det{pump,i}(:,tank);
+% Lower and upper parameter bounds
+lower_bounds = [0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01];
+upper_bounds = [10, 10, 10, 10, 5000, 5000, 5000, 5000];
 
-            options = optimoptions('lsqcurvefit', ...
-                'FunctionTolerance',1e-12, ...
-                'StepTolerance',1e-12, ...
-                'OptimalityTolerance',1e-10, ...
-                'MaxIterations',2000, ...
-                'MaxFunctionEvaluations',10000);
+% Optimization settings
+options = optimoptions('lsqcurvefit', ...
+    'FunctionTolerance',1e-12, ...
+    'StepTolerance',1e-12, ...
+    'OptimalityTolerance',1e-10, ...
+    'MaxIterations',2000, ...
+    'MaxFunctionEvaluations',10000);
 
-            if tank == pump
-                % Diagonal elements: first order [K, T]
-                initial_guess = [0.1, 100];
-                lower_bounds = [0, 0.01];
-                upper_bounds = [10, 5000];
-            else
-                % Off-diagonal elements: second order [K, Tmain, Textra]
-                initial_guess = [0.1, 100, 30];
-                lower_bounds = [0, 0.01, 0.01];
-                upper_bounds = [10, 5000, 5000];
-            end
+% Fit all four input-output responses simultaneously
+for i = 1:3
 
-            % Fit using the correct model order
-            params = lsqcurvefit( ...
-                @(params,t) transferStepResponse(params,t,tank,pump), ...
-                initial_guess, ...
-                t, ...
-                y_fit_data, ...
-                lower_bounds, ...
-                upper_bounds, ...
-                options);
-            % Store parameters for the current input-output pair and step size
-            estimated_params(tank,pump,1:length(params),i) = params;
+    % Collect the four normalized responses:
+    % Column 1: Pump 1 -> Tank 1 (G11)
+    % Column 2: Pump 1 -> Tank 2 (G21)
+    % Column 3: Pump 2 -> Tank 1 (G12)
+    % Column 4: Pump 2 -> Tank 2 (G22)
 
-        end
-    end
+    y_data = [ ...
+        norm_det{1,i}(:,1), ...
+        norm_det{1,i}(:,2), ...
+        norm_det{2,i}(:,1), ...
+        norm_det{2,i}(:,2)];
+
+    % Estimate all eight parameters together
+    params = lsqcurvefit( ...
+        @sharedTransferStepResponse, ...
+        initial_guess, ...
+        t, ...
+        y_data, ...
+        lower_bounds, ...
+        upper_bounds, ...
+        options);
+
+    % Store parameters for this step size
+    estimated_params_shared(:,i) = params(:);
+
 end
 
-disp('Estimated transfer function parameters:');
-disp(estimated_params);
+disp('Estimated parameters with shared time constants:');
+disp(estimated_params_shared);
 
 
+% PLOT THE SHARED MODEL AGAINST THE DETERMINISTIC RESPONSES
 
-% Compare fitted models for each step size
+for i = 1:3
 
-for pump = 1:2
-    for tank = 1:2
+    params = estimated_params_shared(:,i);
 
-        figure;
-        hold on;
-        grid on;
+    % Calculate all four fitted responses
+    y_fit = sharedTransferStepResponse(params,t);
 
-        for i = 1:3
+    figure;
+    tiledlayout(2,2);
 
-            % Extract parameters for this step size
-            params = squeeze(estimated_params(tank,pump,:,i));
+    sgtitle(sprintf('Deterministic transfer-function model - %.0f%% step', ...
+        step_sizes(i)*100));
 
-            % Get corresponding simulated response
-            result = step_results{pump,i};
-            y_data = norm_det{pump,i}(:,tank);
+    % Pump 1 -> Tank 1
+    nexttile;
+    plot(t/60,norm_det{1,i}(:,1),'LineWidth',1.5);
+    hold on;
+    plot(t/60,y_fit(:,1),'--','LineWidth',1.5);
+    grid on;
+    xlabel('Time [min]');
+    ylabel('Normalized response [cm/(cm^3/s)]');
+    title('Pump F_1 to Tank h_1');
+    legend('Simulated','Shared model','Location','best');
 
-            % Calculate fitted response
-            y_fit = transferStepResponse(params,t,tank,pump);
+    % Pump 1 -> Tank 2
+    nexttile;
+    plot(t/60,norm_det{1,i}(:,2),'LineWidth',1.5);
+    hold on;
+    plot(t/60,y_fit(:,2),'--','LineWidth',1.5);
+    grid on;
+    xlabel('Time [min]');
+    ylabel('Normalized response [cm/(cm^3/s)]');
+    title('Pump F_1 to Tank h_2');
+    legend('Simulated','Shared model','Location','best');
 
-            % Plot both responses
-            plot(t/60,y_data,'LineWidth',1.5, ...
-                'DisplayName',sprintf('Simulated +%.0f%%',step_sizes(i)*100));
+    % Pump 2 -> Tank 1
+    nexttile;
+    plot(t/60,norm_det{2,i}(:,1),'LineWidth',1.5);
+    hold on;
+    plot(t/60,y_fit(:,3),'--','LineWidth',1.5);
+    grid on;
+    xlabel('Time [min]');
+    ylabel('Normalized response [cm/(cm^3/s)]');
+    title('Pump F_2 to Tank h_1');
+    legend('Simulated','Shared model','Location','best');
 
-            plot(t/60,y_fit,'--','LineWidth',1.5, ...
-                'DisplayName',sprintf('Fitted model +%.0f%%',step_sizes(i)*100));
+    % Pump 2 -> Tank 2
+    nexttile;
+    plot(t/60,norm_det{2,i}(:,2),'LineWidth',1.5);
+    hold on;
+    plot(t/60,y_fit(:,4),'--','LineWidth',1.5);
+    grid on;
+    xlabel('Time [min]');
+    ylabel('Normalized response [cm/(cm^3/s)]');
+    title('Pump F_2 to Tank h_2');
+    legend('Simulated','Shared model','Location','best');
 
-        end
-
-        xlabel('Time [min]');
-        ylabel('Normalized response [cm/(cm^3/s)]');
-        title(sprintf('Pump F_%d to Tank h_%d',pump,tank));
-        legend('Location','best');
-
-    end
 end
 
 
-
-%% FIT A NEW MODEL USING MEDIUM-NOISE STOCHASTIC DATA
+% Fit a new model using medium-noise stochastic data
 
 pump = 1;
 noise_level = 2;  % Medium noise
 
-% Store parameters for the stochastic models
-% Diagonal: [K, T]
-% Off-diagonal: [K, Tmain, Textra]
-estimated_params_stochastic = zeros(2,2,3,3);
+% Parameter order:
+% [K11_10, K21_10, K11_25, K21_25, K11_50, K21_50, T1, T2, T4]
 
-% Fit both tank responses for all three step sizes
-for tank = 1:2
-    for i = 1:3
+estimated_params_stochastic = zeros(9,1);
 
-        % Extract medium-noise stochastic response
-        y_stochastic = norm_noise{pump,i,noise_level}(:,tank);
+% Collect all six stochastic responses:
+% Columns 1-2: 10% step, Tank 1 and Tank 2
+% Columns 3-4: 25% step, Tank 1 and Tank 2
+% Columns 5-6: 50% step, Tank 1 and Tank 2
 
-        % Select model structure and parameter limits
-        if tank == pump
-            initial_guess = [0.1, 100];
-            lower_bounds = [0, 0.01];
-            upper_bounds = [10, 5000];
-        else
-            initial_guess = [0.1, 100, 30];
-            lower_bounds = [0, 0.01, 0.01];
-            upper_bounds = [10, 5000, 5000];
-        end
+y_stochastic_data = [];
 
-        % Configure least-squares optimization
-        options = optimoptions('lsqcurvefit', ...
-            'FunctionTolerance',1e-12, ...
-            'StepTolerance',1e-12, ...
-            'OptimalityTolerance',1e-10, ...
-            'MaxIterations',2000, ...
-            'MaxFunctionEvaluations',10000);
+for i = 1:3
 
-        % Fit model directly to stochastic data
-        params_stochastic = lsqcurvefit( ...
-            @(params,t) transferStepResponse(params,t,tank,pump), ...
-            initial_guess, ...
-            t, ...
-            y_stochastic, ...
-            lower_bounds, ...
-            upper_bounds, ...
-            options);
+    y_stochastic_data = [y_stochastic_data, ...
+        norm_noise{pump,i,noise_level}(:,1), ...
+        norm_noise{pump,i,noise_level}(:,2)];
 
-        % Store estimated parameters
-        estimated_params_stochastic(tank,pump, ...
-            1:length(params_stochastic),i) = params_stochastic;
-
-    end
 end
 
-disp('Transfer-function parameters identified from medium-noise data:');
+% Use deterministic estimates as initial guesses for the gains
+for i = 1:3
+    estimated_params_stochastic(2*i-1) = estimated_params_shared(1,i);
+    estimated_params_stochastic(2*i) = estimated_params_shared(3,i);
+end
+
+% Use average deterministic time constants as initial guesses
+estimated_params_stochastic(7) = mean(estimated_params_shared(5,:));
+estimated_params_stochastic(8) = mean(estimated_params_shared(6,:));
+estimated_params_stochastic(9) = mean(estimated_params_shared(8,:));
+
+% Parameter bounds
+lower_bounds = [0, 0, 0, 0, 0, 0, 0.01, 0.01, 0.01];
+upper_bounds = [10, 10, 10, 10, 10, 10, 5000, 5000, 5000];
+
+% Optimization settings
+options = optimoptions('lsqcurvefit', ...
+    'FunctionTolerance',1e-12, ...
+    'StepTolerance',1e-12, ...
+    'OptimalityTolerance',1e-10, ...
+    'MaxIterations',2000, ...
+    'MaxFunctionEvaluations',10000);
+
+% Fit all six responses simultaneously using shared time constants
+estimated_params_stochastic = lsqcurvefit( ...
+    @stochasticSharedStepResponse, ...
+    estimated_params_stochastic, ...
+    t, ...
+    y_stochastic_data, ...
+    lower_bounds, ...
+    upper_bounds, ...
+    options);
+
+disp('Stochastic model parameters with shared time constants:');
 disp(estimated_params_stochastic);
 
 
-%% PLOT STOCHASTIC DATA AND THEIR NEWLY FITTED MODELS
+% PLOT STOCHASTIC DATA AND SHARED FITTED MODELS
 
 figure;
 tiledlayout(1,2);
 
-sgtitle('Medium-noise stochastic responses and identified models - Pump F_1');
+sgtitle('Medium-noise stochastic responses and shared models - Pump F_1');
 
 for tank = 1:2
 
@@ -528,13 +557,12 @@ for tank = 1:2
         result = noisy_results{pump,i,noise_level};
         y_stochastic = norm_noise{pump,i,noise_level}(:,tank);
 
-        % Extract parameters fitted to stochastic data
-        params_stochastic = squeeze( ...
-            estimated_params_stochastic(tank,pump,:,i));
+        % Calculate fitted stochastic model response
+        y_fit_stochastic = stochasticSharedStepResponse( ...
+            estimated_params_stochastic,t);
 
-        % Calculate newly fitted model response
-        y_fit_stochastic = transferStepResponse( ...
-            params_stochastic,t,tank,pump);
+        % Select the corresponding fitted response
+        y_fit = y_fit_stochastic(:,2*i-2+tank);
 
         % Plot stochastic measurements
         plot(result.t/60,y_stochastic, ...
@@ -542,10 +570,10 @@ for tank = 1:2
             'DisplayName',sprintf('Stochastic data +%.0f%%', ...
             step_sizes(i)*100));
 
-        % Plot newly fitted model
-        plot(t/60,y_fit_stochastic,'--', ...
+        % Plot fitted model
+        plot(t/60,y_fit,'--', ...
             'LineWidth',1.5, ...
-            'DisplayName',sprintf('Stochastic fitted model +%.0f%%', ...
+            'DisplayName',sprintf('Shared model +%.0f%%', ...
             step_sizes(i)*100));
 
     end
@@ -557,43 +585,36 @@ for tank = 1:2
 
 end
 
-% Construct transfer-function matrices for each step size
+%% CONSTRUCT TRANSFER-FUNCTION MATRICES USING SHARED TIME CONSTANTS
 
 G_final = cell(1,3);
 
 for i = 1:3
 
-    % Create a new 2x2 matrix for this step size
-    Gcell = cell(2,2);
+    % Extract the eight estimated parameters
+    params = estimated_params_shared(:,i);
 
-    for tank = 1:2
-        for pump = 1:2
+    K11 = params(1);
+    K12 = params(2);
+    K21 = params(3);
+    K22 = params(4);
 
-            % Extract parameters for this specific input-output pair
-            params = reshape(estimated_params(tank,pump,:,i),[],1);
+    T1 = params(5);
+    T2 = params(6);
+    T3 = params(7);
+    T4 = params(8);
 
-            Kij = params(1);
-            Tmain = params(2);
+    % Construct the transfer-function matrix
+    G11 = tf(K11,[T1 1]);
 
-            if tank == pump
-                % Diagonal elements: first order
-                Gcell{tank,pump} = tf(Kij,[Tmain 1]);
+    G12 = tf(K12,conv([T1 1],[T3 1]));
 
-            else
-                % Off-diagonal elements: second order
-                Textra = params(3);
+    G21 = tf(K21,conv([T2 1],[T4 1]));
 
-                denominator = conv([Tmain 1],[Textra 1]);
+    G22 = tf(K22,[T2 1]);
 
-                Gcell{tank,pump} = tf(Kij,denominator);
-            end
-
-        end
-    end
-
-    % Assemble the 2x2 transfer-function matrix
-    G_final{i} = [Gcell{1,1}, Gcell{1,2};
-                  Gcell{2,1}, Gcell{2,2}];
+    G_final{i} = [G11 G12;
+                  G21 G22];
 
 end
 
@@ -606,31 +627,44 @@ G_final{2}
 disp('Transfer function matrix for 50% steps:');
 G_final{3}
 
-% Calculate RMSE for each step size
 
-for pump = 1:2
-    for tank = 1:2
-        for i = 1:3
+% CALCULATE RMSE FOR THE SHARED TRANSFER-FUNCTION MODELS
 
-            % Extract fitted parameters
-            params = squeeze(estimated_params(tank,pump,:,i));
+for i = 1:3
 
-            % Get simulated response
-            y_data = norm_det{pump,i}(:,tank);
+    % Extract parameters for this step size
+    params = estimated_params_shared(:,i);
 
-            % Calculate fitted response
-            y_fit = transferStepResponse(params,t,tank,pump);
+    % Calculate all four fitted responses
+    y_fit = sharedTransferStepResponse(params,t);
 
-            % Calculate RMSE
-            RMSE = sqrt(mean((y_data-y_fit).^2));
+    % Calculate RMSE for each input-output relationship
 
-            fprintf('Pump %d -> Tank %d, %.0f%% step: RMSE = %.6f\n', ...
-                pump,tank,step_sizes(i)*100,RMSE);
+    % Pump 1 -> Tank 1
+    y_data = norm_det{1,i}(:,1);
+    RMSE = sqrt(mean((y_data-y_fit(:,1)).^2));
+    fprintf('Pump 1 -> Tank 1, %.0f%% step: RMSE = %.6f\n', ...
+        step_sizes(i)*100,RMSE);
 
-        end
-    end
+    % Pump 1 -> Tank 2
+    y_data = norm_det{1,i}(:,2);
+    RMSE = sqrt(mean((y_data-y_fit(:,2)).^2));
+    fprintf('Pump 1 -> Tank 2, %.0f%% step: RMSE = %.6f\n', ...
+        step_sizes(i)*100,RMSE);
+
+    % Pump 2 -> Tank 1
+    y_data = norm_det{2,i}(:,1);
+    RMSE = sqrt(mean((y_data-y_fit(:,3)).^2));
+    fprintf('Pump 2 -> Tank 1, %.0f%% step: RMSE = %.6f\n', ...
+        step_sizes(i)*100,RMSE);
+
+    % Pump 2 -> Tank 2
+    y_data = norm_det{2,i}(:,2);
+    RMSE = sqrt(mean((y_data-y_fit(:,4)).^2));
+    fprintf('Pump 2 -> Tank 2, %.0f%% step: RMSE = %.6f\n', ...
+        step_sizes(i)*100,RMSE);
+
 end
-%they fit well
 
 %% 9. PART 4.6 - Impulse response coefficients (Markov parameters)
 
@@ -716,22 +750,68 @@ end
 
 
 
-function y = transferStepResponse(params,t,tank,pump)
 
-    Kij = params(1);
-    Tmain = params(2);
+function y = stochasticSharedStepResponse(params,t)
 
-    if tank == pump
-        % Diagonal elements: first-order transfer function
-        G = Kij / tf([Tmain 1], 1);
-    else
-        % Off-diagonal elements: second-order transfer function
-        Textra = params(3);
+    % Extract shared time constants
+    T1 = params(7);
+    T2 = params(8);
+    T4 = params(9);
 
-        G = Kij / ...
-            (tf([Tmain 1], 1) * tf([Textra 1], 1));
+    % Initialize output matrix
+    % Columns: G11_10, G21_10, G11_25, G21_25, G11_50, G21_50
+    y = zeros(length(t),6);
+
+    % Calculate responses for all three step sizes
+    for i = 1:3
+
+        % Extract gains for this step size
+        K11 = params(2*i-1);
+        K21 = params(2*i);
+
+        % Pump 1 -> Tank 1 (first order)
+        G11 = tf(K11,[T1 1]);
+
+        % Pump 1 -> Tank 2 (second order)
+        G21 = tf(K21,conv([T2 1],[T4 1]));
+
+        % Calculate step responses
+        y(:,2*i-1) = squeeze(step(G11,t));
+        y(:,2*i) = squeeze(step(G21,t));
+
     end
 
-    y = squeeze(step(G,t));
+end
+
+
+function y = sharedTransferStepResponse(params,t)
+
+    % Extract gains
+    K11 = params(1);
+    K12 = params(2);
+    K21 = params(3);
+    K22 = params(4);
+
+    % Extract shared time constants
+    T1 = params(5);
+    T2 = params(6);
+    T3 = params(7);
+    T4 = params(8);
+
+    % Construct the four transfer functions
+    G11 = tf(K11,[T1 1]);
+
+    G12 = tf(K12,conv([T1 1],[T3 1]));
+
+    G21 = tf(K21,conv([T2 1],[T4 1]));
+
+    G22 = tf(K22,[T2 1]);
+
+    % Calculate step responses
+    y = [ ...
+        squeeze(step(G11,t)), ...
+        squeeze(step(G21,t)), ...
+        squeeze(step(G12,t)), ...
+        squeeze(step(G22,t))];
 
 end
