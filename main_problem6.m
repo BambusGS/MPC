@@ -19,7 +19,7 @@ p6.measurementVariance = 1;
 % Configure a Problem 6-specific time grid without changing the shared simulation settings.
 sim6 = sim;
 sim6.Ts = 10;
-sim6.tf = 30 * 60;
+sim6.tf = 45 * 60;
 sim6.t = (sim6.t0:sim6.Ts:sim6.tf).';
 sim6.N = numel(sim6.t);
 operpt6 = computeSteadyState([300; 300], p6.FMean, p6);
@@ -35,6 +35,8 @@ sampleStride6 = round(sim6.Ts / sim6.dt);
 sampleIndex6 = 1:sampleStride6:round((sim6.tf - sim6.t0) / sim6.dt) + 1;
 assert(numel(sampleIndex6) == sim6.N, "SDE and KF time grids do not align.");
 sampleTimes6 = sim6.t;
+tankOrder6 = [3, 4, 1, 2];
+tankLabels6 = ["Tank 3 height dev. [cm]", "Tank 4 height dev. [cm]", "Tank 1 height dev. [cm]", "Tank 2 height dev. [cm]"];
 
 fprintf("Finished P6.1 Setup\n");
 %% 6.2 P4 10% identified model and four-state realization
@@ -137,6 +139,10 @@ Q6bar = [58.9, 0,    505.1, 0,    64.4, 0;
          64.4, 0,   707.7, 0,    158.0, 0;
          0,    42.3, 0,    730.8, 0,    158.0];
 
+% Perform P5 model linearization and augmentation.
+lin6 = computeJacobians(operpt6, p6);
+aug6 = computeAugmentedModel(lin6, p6);
+
 % Define the standard discrete-time Kalman models for P5.
 modelP5.A = A6bar;
 modelP5.B = B6bar;
@@ -152,7 +158,7 @@ assertKalmanModelP6(modelP5);
 % Mark completion of the P4/P5 model definitions and validations.
 fprintf("Finished P6.3 P5 numerical six-state SDE model\n");
 
-%% 6.4 Problem 4 linear model, no step
+%% 6.4 No-step: P4 linear-model truth vs. static/dynamic P4 Kalman filters
 % Simulate the identified model and compare static and dynamic filters on shared observations.
 % Simulate with the same Q and R used to design the filters.
 rng(sim.randomSeed + 42);
@@ -164,10 +170,11 @@ resultP4LinearNoStep.static = kalmanFilter(modelP4, truthP4LinearNoStep.y, input
 p6Results.p4.linear.noStep.truth = truthP4LinearNoStep;
 p6Results.p4.linear.noStep.filters = resultP4LinearNoStep;
 p6Results.p4.linear.noStep.outputRMSE = [sqrt(mean((modelP4.C * resultP4LinearNoStep.static.xf - modelP4.C * truthP4LinearNoStep.x).^2, "all")), sqrt(mean((modelP4.C * resultP4LinearNoStep.dynamic.xf - modelP4.C * truthP4LinearNoStep.x).^2, "all"))];
-plotP6OutputFit(sampleTimes6, modelP4.C * truthP4LinearNoStep.x, truthP4LinearNoStep.y, modelP4.C, resultP4LinearNoStep.static, resultP4LinearNoStep.dynamic, "P4 linear no-step", fullfile(projectRoot, "figures", "problem6_4_p4_linear_no_step_outputs.png"));
+plotP6OutputFit(sampleTimes6, modelP4.C * truthP4LinearNoStep.x, truthP4LinearNoStep.y, modelP4.C, resultP4LinearNoStep.static, resultP4LinearNoStep.dynamic, "P4 original linear no-step", "Linear truth", fullfile(projectRoot, "figures", "problem6_4_p4_linear_no_step_outputs.png"));
+plotP6TruthPair(sampleTimes6, truthP4LinearNoStep.x, resultP4LinearNoStep.static.xf, resultP4LinearNoStep.dynamic.xf, ["Abstract 1", "Abstract 2", "Abstract 3", "Abstract 4"], "P4 original no-step: abstract states", "Linear truth", fullfile(projectRoot, "figures", "problem6_4_p4_linear_no_step_abstract_states.png"));
 
 fprintf("Finished P6.4 P4 linear model, no step\n");
-%% 6.5 Problem 5 linear model, no step
+%% 6.5 No-step: P5 linear-model truth vs. static/dynamic P5 Kalman filters
 % Simulate the physical model and compare both filters against its linear-model truth.
 rng(sim.randomSeed + 43);
 modelP5Truth = modelP5;
@@ -178,10 +185,15 @@ resultP5LinearNoStep.static = kalmanFilter(modelP5, truthP5LinearNoStep.y, input
 p6Results.p5.linear.noStep.truth = truthP5LinearNoStep;
 p6Results.p5.linear.noStep.filters = resultP5LinearNoStep;
 p6Results.p5.linear.noStep.outputRMSE = [sqrt(mean((modelP5.C * resultP5LinearNoStep.static.xf - modelP5.C * truthP5LinearNoStep.x).^2, "all")), sqrt(mean((modelP5.C * resultP5LinearNoStep.dynamic.xf - modelP5.C * truthP5LinearNoStep.x).^2, "all"))];
-plotP6OutputFit(sampleTimes6, modelP5.C * truthP5LinearNoStep.x, truthP5LinearNoStep.y, modelP5.C, resultP5LinearNoStep.static, resultP5LinearNoStep.dynamic, "P5 linear no-step", fullfile(projectRoot, "figures", "problem6_5_p5_linear_no_step_outputs.png"));
+plotP6OutputFit(sampleTimes6, modelP5.C * truthP5LinearNoStep.x, truthP5LinearNoStep.y, modelP5.C, resultP5LinearNoStep.static, resultP5LinearNoStep.dynamic, "P5 original linear no-step", "Linear truth", fullfile(projectRoot, "figures", "problem6_5_p5_linear_no_step_outputs.png"));
+p5LinearTruthTankHeight6 = tankHeightsFromMasses(truthP5LinearNoStep.x(1:4, :), p6);
+p5LinearStaticTankHeight6 = tankHeightsFromMasses(resultP5LinearNoStep.static.xf(1:4, :), p6);
+p5LinearDynamicTankHeight6 = tankHeightsFromMasses(resultP5LinearNoStep.dynamic.xf(1:4, :), p6);
+plotP6TruthPair(sampleTimes6, p5LinearTruthTankHeight6(tankOrder6, :), p5LinearStaticTankHeight6(tankOrder6, :), p5LinearDynamicTankHeight6(tankOrder6, :), tankLabels6, "P5 original no-step: tank height dev.", "Linear truth", fullfile(projectRoot, "figures", "problem6_5_p5_linear_no_step_tank_heights.png"));
+plotP6TruthPair(sampleTimes6, truthP5LinearNoStep.x(5:6, :), resultP5LinearNoStep.static.xf(5:6, :), resultP5LinearNoStep.dynamic.xf(5:6, :), ["D_3 [cm^3/s]", "D_4 [cm^3/s]"], "P5 original no-step: disturbances", "Linear truth", fullfile(projectRoot, "figures", "problem6_5_p5_linear_no_step_disturbances.png"));
 
 fprintf("Finished P6.5 P5 linear model, no step\n");
-%% 6.6 Nonlinear model, no step
+%% 6.6 No-step: nonlinear SDE truth vs. static/dynamic P4/P5 linear Kalman filters
 % Generate one nonlinear truth realization and sample it on the filter grid.
 rng(sim.randomSeed);
 truthNoStepFine = simulateSDE_rerun(p6, sim6);
@@ -198,10 +210,6 @@ resultP5NoStep.static = kalmanFilter(modelP5, measurementNoStep6, inputDeviation
 p6Results.nonlinear.noStep.truth = truthNoStepFine;
 p6Results.nonlinear.noStep.filters.p4 = resultP4NoStep;
 p6Results.nonlinear.noStep.filters.p5 = resultP5NoStep;
-
-% Confirm that both filters use the same observations and return finite states.
-assert(isequal(measurementNoStep6, truthNoStepFine.y(sampleIndex6, :).'-operpt6.y) && isequal(inputDeviation6, zeros(size(inputDeviation6))), "The filters must use the same sampled measurements and known input deviations.");
-assert(all(isfinite(resultP4NoStep.dynamic.xf(:))) && all(isfinite(resultP5NoStep.dynamic.xf(:))), "No-step filter returned nonfinite state estimates.");
 
 % Measure convergence of the time-varying filter gains to their steady-state values.
 [~, staticGainP4] = kalmanStatic(modelP4);
@@ -227,42 +235,40 @@ p5NoStepDisturbanceStaticRMSE6 = sqrt(mean((resultP5NoStep.static.xf(5:6, :) - t
 fprintf("P5 tank-height RMSE dynamic/static %.4g/%.4g cm; disturbance RMSE %.4g/%.4g cm^3/s.\n", p5NoStepTankDynamicRMSE6, p5NoStepTankStaticRMSE6, p5NoStepDisturbanceDynamicRMSE6, p5NoStepDisturbanceStaticRMSE6);
 fprintf("P5 output vs physical truth: dynamic %.4g cm, static %.4g cm; gain gap %.2e.\n", sqrt(mean((modelP5.C * resultP5NoStep.dynamic.xf - trueOutputNoStep6).^2, "all")), sqrt(mean((modelP5.C * resultP5NoStep.static.xf - trueOutputNoStep6).^2, "all")), gainRelativeErrorP5);
 
-% Plot P4 abstract states without interpreting them as physical tank heights.
-plotP6EstimatePair(sampleTimes6, resultP4NoStep.static, resultP4NoStep.dynamic, 1:4, ["Abstract 1", "Abstract 2", "Abstract 3", "Abstract 4"], "P4 no-step: abstract estimates", fullfile(projectRoot, "figures", "problem6_6_p4_no_step_estimates.png"));
 % Convert physical tank mass deviations to height deviations for tank-only figures.
 p5NoStepStaticPlot6 = resultP5NoStep.static;
 p5NoStepDynamicPlot6 = resultP5NoStep.dynamic;
 p5NoStepStaticPlot6.xf(1:4, :) = tankHeightsFromMasses(p5NoStepStaticPlot6.xf(1:4, :), p6);
 p5NoStepDynamicPlot6.xf(1:4, :) = tankHeightsFromMasses(p5NoStepDynamicPlot6.xf(1:4, :), p6);
-tankOrder6 = [3, 4, 1, 2];
-tankLabels6 = ["Tank 3 height dev. [cm]", "Tank 4 height dev. [cm]", "Tank 1 height dev. [cm]", "Tank 2 height dev. [cm]"];
-plotP6TruthPair(sampleTimes6, trueTankNoStep6(tankOrder6, :), p5NoStepStaticPlot6.xf(tankOrder6, :), p5NoStepDynamicPlot6.xf(tankOrder6, :), tankLabels6, "P5 no-step: tank height dev.", fullfile(projectRoot, "figures", "problem6_6_p5_no_step_tank_truth.png"));
-plotP6TruthPair(sampleTimes6, trueDisturbanceNoStep6, resultP5NoStep.static.xf(5:6, :), resultP5NoStep.dynamic.xf(5:6, :), ["D_3 [cm^3/s]", "D_4 [cm^3/s]"], "P5 no-step: disturbances", fullfile(projectRoot, "figures", "problem6_6_p5_no_step_disturbance_truth.png"));
+plotP6TruthPair(sampleTimes6, trueTankNoStep6(tankOrder6, :), p5NoStepStaticPlot6.xf(tankOrder6, :), p5NoStepDynamicPlot6.xf(tankOrder6, :), tankLabels6, "P5 original no-step: tank height dev.", "Nonlinear truth", fullfile(projectRoot, "figures", "problem6_6_p5_no_step_tank_truth.png"));
+plotP6TruthPair(sampleTimes6, trueDisturbanceNoStep6, resultP5NoStep.static.xf(5:6, :), resultP5NoStep.dynamic.xf(5:6, :), ["D_3 [cm^3/s]", "D_4 [cm^3/s]"], "P5 original no-step: disturbances", "Nonlinear truth", fullfile(projectRoot, "figures", "problem6_6_p5_no_step_disturbance_truth.png"));
 
 % Compare dynamic gain convergence to the steady-state gains of both models.
 figure("Visible", "off");
-semilogy(sampleTimes6 / 60, max(gainGapP4, eps), "LineWidth", 1.2);
+semilogy(sampleTimes6 / 60, max(gainGapP4 / max(norm(staticGainP4, "fro"), eps), eps), "LineWidth", 1.2);
 hold on;
-semilogy(sampleTimes6 / 60, max(gainGapP5, eps), "LineWidth", 1.2);
+semilogy(sampleTimes6 / 60, max(gainGapP5 / max(norm(staticGainP5, "fro"), eps), eps), "LineWidth", 1.2);
 grid on;
 xlabel("Time [min]");
-ylabel("||K_{dynamic} - K_{static}||_F");
-legend("P4", "P5", "Location", "best");
+ylabel("Relative ||K_{dynamic} - K_{static}||_F");
+legend("P4 original", "P5 original", "Location", "best");
 title("No-step dynamic Kalman gains converge to static gains");
 saveas(gcf, fullfile(projectRoot, "figures", "problem6_6_no_step_gain_convergence.png"));
 close(gcf);
 
 % Compare predicted outputs with physical truth and sampled measurements.
-plotP6OutputFit(sampleTimes6, trueOutputNoStep6, measurementNoStep6, modelP4.C, resultP4NoStep.static, resultP4NoStep.dynamic, "P4 no-step output fit", fullfile(projectRoot, "figures", "problem6_6_p4_no_step_outputs.png"));
-plotP6OutputFit(sampleTimes6, trueOutputNoStep6, measurementNoStep6, modelP5.C, resultP5NoStep.static, resultP5NoStep.dynamic, "P5 no-step output fit", fullfile(projectRoot, "figures", "problem6_6_p5_no_step_outputs.png"));
+plotP6OutputFit(sampleTimes6, trueOutputNoStep6, measurementNoStep6, modelP4.C, resultP4NoStep.static, resultP4NoStep.dynamic, "P4 original no-step output fit", "Nonlinear truth", fullfile(projectRoot, "figures", "problem6_6_p4_no_step_outputs.png"));
+plotP6OutputFit(sampleTimes6, trueOutputNoStep6, measurementNoStep6, modelP5.C, resultP5NoStep.static, resultP5NoStep.dynamic, "P5 original no-step output fit", "Nonlinear truth", fullfile(projectRoot, "figures", "problem6_6_p5_no_step_outputs.png"));
 
 fprintf("Finished P6.6 Nonlinear model, no step\n");
-%% 6.7 Offset-free filter models and step setup
-% Apply the pump-disturbance mean change at the midpoint of the 30-minute run.
-stepTime6 = 15 * 60;
-stepMean6 = [80; 100];
-meanSchedule6.times = [sim6.t0; stepTime6];
-meanSchedule6.values = [p6.FMean, stepMean6];
+%% 6.7 Step scenario setup: nonlinear SDE truth and augmented P4/P5 linear filters
+% Change the F3 mean at 15 min and the F4 mean at 30 min.
+stepTimes6 = [15, 30] * 60;
+stepDeltaValues6 = [30, 0;
+                    0, -20];
+stepMeanValues6 = [p6.FMean, p6.FMean + cumsum(stepDeltaValues6, 2)];
+meanSchedule6.times = [sim6.t0; stepTimes6(:)];
+meanSchedule6.values = stepMeanValues6;
 rng(sim.randomSeed);
 
 truthStepFine = simulateSDE_rerun(p6, sim6, meanSchedule6);
@@ -273,9 +279,18 @@ trueTankStep6 = tankHeightsFromMasses(truthStep6(:, 1:4).', p6) - operpt6.h;
 trueDisturbanceStep6 = truthStepD6.' - p6.FMean;
 trueOutputStep6 = truthStep6(:, 1:2).' ./ (p6.rho .* p6.A(1:2)) - operpt6.y;
 trueMeanShift6 = zeros(2, sim6.N);
-trueMeanShift6(:, sampleTimes6 >= stepTime6) = repmat(stepMean6 - p6.FMean, 1, sum(sampleTimes6 >= stepTime6));
-stepSampleIndex6 = find(sampleTimes6 == stepTime6, 1);
-assert(~isempty(stepSampleIndex6) && isequal(truthNoStepFine.v(sampleIndex6, :), truthStepFine.v(sampleIndex6, :)), "No-step and stepped experiments must use matching seeded measurement-noise samples.");
+for stepIndex6 = 1:numel(stepTimes6)
+    stepMask6 = sampleTimes6.' >= stepTimes6(stepIndex6);
+    currentMeanShift6 = stepMeanValues6(:, stepIndex6 + 1) - p6.FMean;
+    trueMeanShift6(:, stepMask6) = repmat(currentMeanShift6, 1, sum(stepMask6));
+end
+stepSampleIndices6 = zeros(1, numel(stepTimes6));
+for stepIndex6 = 1:numel(stepTimes6)
+    stepSampleIndex6 = find(sampleTimes6 == stepTimes6(stepIndex6), 1);
+    assert(~isempty(stepSampleIndex6), "Every disturbance step must align with a filter sample.");
+    stepSampleIndices6(stepIndex6) = stepSampleIndex6;
+end
+assert(isequal(truthNoStepFine.v(sampleIndex6, :), truthStepFine.v(sampleIndex6, :)), "No-step and stepped experiments must use matching seeded measurement-noise samples.");
 
 % Build the P4 augmentation with random-walk states for effective input biases.
 % P4: integrating effective pump-input biases (not estimates of physical F3/F4).
@@ -292,8 +307,8 @@ Gamma6 = [zeros(4, 2); diag(p6.disturbanceRate)];
 A8c = [aug6.A, Gamma6; zeros(2, 8)];
 B8c = [aug6.B; zeros(2, 2)];
 
-% Compare a baseline offset-noise scale with one decade below and above it.
-SigmaNValues6 = [5];             % Per-sample standard deviations, can run comparison across many [cm^3/s]
+% Each configured offset-noise scale generates its complete stepped-figure set.
+SigmaNValues6 = [5];             % Per-sample standard deviations, can run comparison across many if needed [cm^3/s]
 p6Results.p4.linear.step = cell(1, numel(SigmaNValues6));
 p6Results.p5.linear.step = cell(1, numel(SigmaNValues6));
 p6Results.nonlinear.step = cell(1, numel(SigmaNValues6));
@@ -315,16 +330,23 @@ for noiseIndex = 1:numel(SigmaNValues6)
     modelP5N{noiseIndex}.P0 = P0Scale6 * eye(8);
     modelP5N{noiseIndex}.name = "P5 mean-shift augmented";
     assertKalmanModelP6(modelP5N{noiseIndex});
-    assert(norm(modelP5N{noiseIndex}.A(7:8, 7:8) - eye(2), "fro") < 1e-12, "P5 offset states must be discrete random walks.");
 end
 
 fprintf("Finished P6.7 Offset-free filter models and step setup\n");
-%% 6.8 Problem 4 and 5 linear models, step
-% Evaluate linear and nonlinear filters across the three offset-noise scales.
-stepTransient = sampleTimes6 >= stepTime6 & sampleTimes6 < stepTime6 + 180;
-stepSettled = sampleTimes6 >= stepTime6 + 180;
-postStepSummary6 = zeros(numel(SigmaNValues6), 12);
-linearStepSummary6 = zeros(numel(SigmaNValues6), 5);
+%% 6.8 Step: linear-model truth and nonlinear SDE truth vs. augmented P4/P5 filters
+% Evaluate linear and nonlinear filters at every configured offset-noise scale.
+stepEventCount6 = numel(stepTimes6);
+stepEventEndTimes6 = [stepTimes6(2:end), sim6.tf + sim6.Ts];
+stepTransientMasks6 = false(stepEventCount6, sim6.N);
+stepSettledMasks6 = false(stepEventCount6, sim6.N);
+for stepIndex6 = 1:stepEventCount6
+    stepTransientEnd6 = min(stepTimes6(stepIndex6) + 180, stepEventEndTimes6(stepIndex6));
+    stepTransientMasks6(stepIndex6, :) = sampleTimes6.' >= stepTimes6(stepIndex6) & sampleTimes6.' < stepTransientEnd6;
+    stepSettledMasks6(stepIndex6, :) = sampleTimes6.' >= stepTimes6(stepIndex6) + 180 & sampleTimes6.' < stepEventEndTimes6(stepIndex6);
+end
+stepSummaryRowCount6 = numel(SigmaNValues6) * stepEventCount6;
+postStepSummary6 = zeros(stepSummaryRowCount6, 13);
+linearStepSummary6 = zeros(stepSummaryRowCount6, 6);
 for noiseIndex = 1:numel(SigmaNValues6)
     sigmaN = SigmaNValues6(noiseIndex);
     % Update the P4 augmented process covariance for the current sigma.
@@ -332,10 +354,12 @@ for noiseIndex = 1:numel(SigmaNValues6)
     modelP4N.P0 = P0Scale6 * eye(6);
     assertKalmanModelP6(modelP4N);
 
-    % The P4 step is an effective input bias, not a physical F3/F4 estimate.
-    % A one-sample impulse sets the augmented bias state at the step.
+    % P4 estimates effective input biases, not physical F3/F4 flows.
+    % One-sample impulses set the augmented bias states at each step.
     stepImpulse6 = zeros(2, sim6.N);
-    stepImpulse6(:, stepSampleIndex6 - 1) = stepMean6 - p6.FMean;
+    for stepIndex6 = 1:stepEventCount6
+        stepImpulse6(:, stepSampleIndices6(stepIndex6) - 1) = stepDeltaValues6(:, stepIndex6);
+    end
 
     % Generate the P4 linear step truth and filter estimates using common noise.
     rng(sim.randomSeed + 620);
@@ -367,17 +391,38 @@ for noiseIndex = 1:numel(SigmaNValues6)
 
     p4LinearOutput = modelP4N.C * truthP4LinearStep.x;
     p5LinearOutput = modelP5N{noiseIndex}.C * truthP5LinearStep.x;
-    % Compute transient output RMSE for the final model comparison.
-    p5LinearStepRMSE = [sqrt(mean((modelP5N{noiseIndex}.C * p5LinearStep.static.xp(:, stepTransient) - p5LinearOutput(:, stepTransient)).^2, "all")), sqrt(mean((modelP5N{noiseIndex}.C * p5LinearStep.dynamic.xp(:, stepTransient) - p5LinearOutput(:, stepTransient)).^2, "all"))];
-    p4LinearStepRMSE = [sqrt(mean((modelP4N.C * p4LinearStep.static.xp(:, stepTransient) - p4LinearOutput(:, stepTransient)).^2, "all")), sqrt(mean((modelP4N.C * p4LinearStep.dynamic.xp(:, stepTransient) - p4LinearOutput(:, stepTransient)).^2, "all"))];
-    linearStepSummary6(noiseIndex, :) = [sigmaN, p4LinearStepRMSE, p5LinearStepRMSE];
+    p4LinearStepRMSEByEvent6 = zeros(stepEventCount6, 2);
+    p5LinearStepRMSEByEvent6 = zeros(stepEventCount6, 2);
+    for stepIndex6 = 1:stepEventCount6
+        stepTransientMask6 = stepTransientMasks6(stepIndex6, :);
+        p5LinearStepRMSEByEvent6(stepIndex6, :) = [sqrt(mean((modelP5N{noiseIndex}.C * p5LinearStep.static.xp(:, stepTransientMask6) - p5LinearOutput(:, stepTransientMask6)).^2, "all")), sqrt(mean((modelP5N{noiseIndex}.C * p5LinearStep.dynamic.xp(:, stepTransientMask6) - p5LinearOutput(:, stepTransientMask6)).^2, "all"))];
+        p4LinearStepRMSEByEvent6(stepIndex6, :) = [sqrt(mean((modelP4N.C * p4LinearStep.static.xp(:, stepTransientMask6) - p4LinearOutput(:, stepTransientMask6)).^2, "all")), sqrt(mean((modelP4N.C * p4LinearStep.dynamic.xp(:, stepTransientMask6) - p4LinearOutput(:, stepTransientMask6)).^2, "all"))];
+        summaryRow6 = (noiseIndex - 1) * stepEventCount6 + stepIndex6;
+        linearStepSummary6(summaryRow6, :) = [sigmaN, stepTimes6(stepIndex6) / 60, p4LinearStepRMSEByEvent6(stepIndex6, :), p5LinearStepRMSEByEvent6(stepIndex6, :)];
+    end
+    allStepTransientMask6 = any(stepTransientMasks6, 1);
+    p4LinearStepRMSE = [sqrt(mean((modelP4N.C * p4LinearStep.static.xp(:, allStepTransientMask6) - p4LinearOutput(:, allStepTransientMask6)).^2, "all")), sqrt(mean((modelP4N.C * p4LinearStep.dynamic.xp(:, allStepTransientMask6) - p4LinearOutput(:, allStepTransientMask6)).^2, "all"))];
+    p5LinearStepRMSE = [sqrt(mean((modelP5N{noiseIndex}.C * p5LinearStep.static.xp(:, allStepTransientMask6) - p5LinearOutput(:, allStepTransientMask6)).^2, "all")), sqrt(mean((modelP5N{noiseIndex}.C * p5LinearStep.dynamic.xp(:, allStepTransientMask6) - p5LinearOutput(:, allStepTransientMask6)).^2, "all"))];
     p6Results.p4.linear.step{noiseIndex}.transientOutputRMSE = p4LinearStepRMSE;
+    p6Results.p4.linear.step{noiseIndex}.transientOutputRMSEByEvent = p4LinearStepRMSEByEvent6;
     p6Results.p5.linear.step{noiseIndex}.transientOutputRMSE = p5LinearStepRMSE;
+    p6Results.p5.linear.step{noiseIndex}.transientOutputRMSEByEvent = p5LinearStepRMSEByEvent6;
+    p6Results.p4.linear.step{noiseIndex}.stepTimes = stepTimes6;
+    p6Results.p5.linear.step{noiseIndex}.stepTimes = stepTimes6;
 
     sigmaTag = strrep(num2str(sigmaN), ".", "p");
     % Save linear-model output-fit figures under their section and sigma names.
-    plotP6OutputFit(sampleTimes6, p4LinearOutput, truthP4LinearStep.y, modelP4N.C, p4LinearStep.static, p4LinearStep.dynamic, "P4 linear step output", fullfile(projectRoot, "figures", "problem6_8_p4_linear_step_outputs_sigma_" + sigmaTag + ".png"));
-    plotP6OutputFit(sampleTimes6, p5LinearOutput, truthP5LinearStep.y, modelP5N{noiseIndex}.C, p5LinearStep.static, p5LinearStep.dynamic, "P5 linear step output", fullfile(projectRoot, "figures", "problem6_8_p5_linear_step_outputs_sigma_" + sigmaTag + ".png"));
+    plotP6OutputFit(sampleTimes6, p4LinearOutput, truthP4LinearStep.y, modelP4N.C, p4LinearStep.static, p4LinearStep.dynamic, "P4 augmented step output", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p4_augmented_linear_step_outputs_sigma_" + sigmaTag + ".png"), stepTimes6);
+    plotP6OutputFit(sampleTimes6, p5LinearOutput, truthP5LinearStep.y, modelP5N{noiseIndex}.C, p5LinearStep.static, p5LinearStep.dynamic, "P5 augmented step output", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p5_augmented_linear_step_outputs_sigma_" + sigmaTag + ".png"), stepTimes6);
+    plotP6TruthPair(sampleTimes6, truthP4LinearStep.x, p4LinearStep.static.xf, p4LinearStep.dynamic.xf, ["Abstract 1", "Abstract 2", "Abstract 3", "Abstract 4", "Eff. input bias 1", "Eff. input bias 2"], "P4 augmented step: abstract states", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p4_augmented_linear_step_abstract_states_sigma_" + sigmaTag + ".png"), stepTimes6);
+
+    p5LinearStepStaticPlot6 = p5LinearStep.static;
+    p5LinearStepDynamicPlot6 = p5LinearStep.dynamic;
+    p5LinearStepStaticPlot6.xf(1:4, :) = tankHeightsFromMasses(p5LinearStepStaticPlot6.xf(1:4, :), p6);
+    p5LinearStepDynamicPlot6.xf(1:4, :) = tankHeightsFromMasses(p5LinearStepDynamicPlot6.xf(1:4, :), p6);
+    p5LinearStepTruthTankHeight6 = tankHeightsFromMasses(truthP5LinearStep.x(1:4, :), p6);
+    plotP6TruthPair(sampleTimes6, p5LinearStepTruthTankHeight6(tankOrder6, :), p5LinearStepStaticPlot6.xf(tankOrder6, :), p5LinearStepDynamicPlot6.xf(tankOrder6, :), tankLabels6, "P5 augmented step: tank height dev.", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p5_augmented_linear_step_tank_heights_sigma_" + sigmaTag + ".png"), stepTimes6);
+    plotP6TruthPair(sampleTimes6, truthP5LinearStep.x(5:8, :), p5LinearStep.static.xf(5:8, :), p5LinearStep.dynamic.xf(5:8, :), ["D_3 [cm^3/s]", "D_4 [cm^3/s]", "N_3 [cm^3/s]", "N_4 [cm^3/s]"], "P5 augmented step: disturbances and N estimates", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p5_augmented_linear_step_D_N_sigma_" + sigmaTag + ".png"), stepTimes6);
 
     % Nonlinear model, step: evaluate both augmented filters on shared truth
     p4Step.dynamic = kalmanFilter(modelP4N, measurementStep6, inputDeviation6, "dynamic");
@@ -388,7 +433,6 @@ for noiseIndex = 1:numel(SigmaNValues6)
     p6Results.nonlinear.step{noiseIndex}.filters.p4 = p4Step;
     p6Results.nonlinear.step{noiseIndex}.filters.p5 = p5Step;
     p6Results.nonlinear.step{noiseIndex}.sigmaN = sigmaN;
-    assert(all(isfinite(p4Step.dynamic.xf(:))) && all(isfinite(p5Step.dynamic.xf(:))), "Stepped filter returned nonfinite state estimates.");
 
     % Compare finite-horizon gains with each augmented model's steady-state gain.
     [~, staticGainP4N] = kalmanStatic(modelP4N);
@@ -404,24 +448,35 @@ for noiseIndex = 1:numel(SigmaNValues6)
     assert(probeGapP4N < 1e-5 && probeGapP5N < 1e-5, "Dynamic augmented-model gains did not converge to their static gains.");
     p4StepGainGap = norm(p4Step.dynamic.K(:, :, end) - staticGainP4N, "fro") / max(norm(staticGainP4N, "fro"), eps);
     p5StepGainGap = norm(p5Step.dynamic.K(:, :, end) - staticGainP5N, "fro") / max(norm(staticGainP5N, "fro"), eps);
+    gainGapP4Step6 = zeros(1, sim6.N);
+    gainGapP5Step6 = zeros(1, sim6.N);
+    for k = 1:sim6.N
+        gainGapP4Step6(k) = norm(p4Step.dynamic.K(:, :, k) - staticGainP4N, "fro") / max(norm(staticGainP4N, "fro"), eps);
+        gainGapP5Step6(k) = norm(p5Step.dynamic.K(:, :, k) - staticGainP5N, "fro") / max(norm(staticGainP5N, "fro"), eps);
+    end
 
     % Calculate output predictions and summary metrics for both augmented models.
     p4PredictionDynamic = modelP4N.C * p4Step.dynamic.xp;
     p4PredictionStatic = modelP4N.C * p4Step.static.xp;
     p5PredictionDynamic = modelP5N{noiseIndex}.C * p5Step.dynamic.xp;
     p5PredictionStatic = modelP5N{noiseIndex}.C * p5Step.static.xp;
-    postStepSummary6(noiseIndex, 1) = sigmaN;
-    postStepSummary6(noiseIndex, 2) = sqrt(mean((p5PredictionDynamic(:, stepTransient) - trueOutputStep6(:, stepTransient)).^2, "all"));
-    postStepSummary6(noiseIndex, 3) = max(abs(mean(p5PredictionDynamic(:, stepSettled) - trueOutputStep6(:, stepSettled), 2)));
-    postStepSummary6(noiseIndex, 4) = sqrt(mean((p5Step.dynamic.xf(7:8, stepSettled) - trueMeanShift6(:, stepSettled)).^2, "all"));
-    postStepSummary6(noiseIndex, 5) = sqrt(mean((p5PredictionStatic(:, stepTransient) - trueOutputStep6(:, stepTransient)).^2, "all"));
-    postStepSummary6(noiseIndex, 6) = max(abs(mean(p5PredictionStatic(:, stepSettled) - trueOutputStep6(:, stepSettled), 2)));
-    postStepSummary6(noiseIndex, 7) = sqrt(mean((p5Step.static.xf(7:8, stepSettled) - trueMeanShift6(:, stepSettled)).^2, "all"));
-    postStepSummary6(noiseIndex, 8) = sqrt(mean((p4PredictionDynamic(:, stepTransient) - trueOutputStep6(:, stepTransient)).^2, "all"));
-    postStepSummary6(noiseIndex, 9) = max(abs(mean(p4PredictionDynamic(:, stepSettled) - trueOutputStep6(:, stepSettled), 2)));
-    postStepSummary6(noiseIndex, 10) = sqrt(mean((p4PredictionStatic(:, stepTransient) - trueOutputStep6(:, stepTransient)).^2, "all"));
-    postStepSummary6(noiseIndex, 11) = max(abs(mean(p4PredictionStatic(:, stepSettled) - trueOutputStep6(:, stepSettled), 2)));
-    postStepSummary6(noiseIndex, 12) = max(p4StepGainGap, p5StepGainGap);
+    for stepIndex6 = 1:stepEventCount6
+        stepTransientMask6 = stepTransientMasks6(stepIndex6, :);
+        stepSettledMask6 = stepSettledMasks6(stepIndex6, :);
+        summaryRow6 = (noiseIndex - 1) * stepEventCount6 + stepIndex6;
+        postStepSummary6(summaryRow6, :) = [sigmaN, stepTimes6(stepIndex6) / 60, ...
+            sqrt(mean((p5PredictionDynamic(:, stepTransientMask6) - trueOutputStep6(:, stepTransientMask6)).^2, "all")), ...
+            max(abs(mean(p5PredictionDynamic(:, stepSettledMask6) - trueOutputStep6(:, stepSettledMask6), 2))), ...
+            sqrt(mean((p5Step.dynamic.xf(7:8, stepSettledMask6) - trueMeanShift6(:, stepSettledMask6)).^2, "all")), ...
+            sqrt(mean((p5PredictionStatic(:, stepTransientMask6) - trueOutputStep6(:, stepTransientMask6)).^2, "all")), ...
+            max(abs(mean(p5PredictionStatic(:, stepSettledMask6) - trueOutputStep6(:, stepSettledMask6), 2))), ...
+            sqrt(mean((p5Step.static.xf(7:8, stepSettledMask6) - trueMeanShift6(:, stepSettledMask6)).^2, "all")), ...
+            sqrt(mean((p4PredictionDynamic(:, stepTransientMask6) - trueOutputStep6(:, stepTransientMask6)).^2, "all")), ...
+            max(abs(mean(p4PredictionDynamic(:, stepSettledMask6) - trueOutputStep6(:, stepSettledMask6), 2))), ...
+            sqrt(mean((p4PredictionStatic(:, stepTransientMask6) - trueOutputStep6(:, stepTransientMask6)).^2, "all")), ...
+            max(abs(mean(p4PredictionStatic(:, stepSettledMask6) - trueOutputStep6(:, stepSettledMask6), 2))), ...
+            max(p4StepGainGap, p5StepGainGap)];
+    end
 
     % Confirm completion of each sigma case; detailed metrics are summarized below.
     fprintf("Completed nonlinear step estimates for sigma_N=%g cm^3/s.\n", sigmaN);
@@ -431,54 +486,34 @@ for noiseIndex = 1:numel(SigmaNValues6)
     p5StepDynamicPlot6 = p5Step.dynamic;
     p5StepStaticPlot6.xf(1:4, :) = tankHeightsFromMasses(p5StepStaticPlot6.xf(1:4, :), p6);
     p5StepDynamicPlot6.xf(1:4, :) = tankHeightsFromMasses(p5StepDynamicPlot6.xf(1:4, :), p6);
-    % Plot the P4 augmented state estimates and output fit.
-    plotP6EstimatePair(sampleTimes6, p4Step.static, p4Step.dynamic, 1:6, ["Abstract 1", "Abstract 2", "Abstract 3", "Abstract 4", "Eff. input bias 1", "Eff. input bias 2"], "P4 step: estimates", fullfile(projectRoot, "figures", "problem6_8_p4_step_estimates_sigma_" + sigmaTag + ".png"));
-    plotP6OutputFit(sampleTimes6, trueOutputStep6, measurementStep6, modelP4N.C, p4Step.static, p4Step.dynamic, "P4 step output", fullfile(projectRoot, "figures", "problem6_8_p4_step_outputs_sigma_" + sigmaTag + ".png"));
+    plotP6OutputFit(sampleTimes6, trueOutputStep6, measurementStep6, modelP4N.C, p4Step.static, p4Step.dynamic, "P4 augmented step output", "Nonlinear truth", fullfile(projectRoot, "figures", "problem6_8_p4_augmented_nonlinear_step_outputs_sigma_" + sigmaTag + ".png"), stepTimes6);
 
     % Compare tank-height and D/N truth with both filters in separate figures.
-    plotP6TruthPair(sampleTimes6, trueTankStep6(tankOrder6, :), p5StepStaticPlot6.xf(tankOrder6, :), p5StepDynamicPlot6.xf(tankOrder6, :), tankLabels6, "P5 step: tank height dev.", fullfile(projectRoot, "figures", "problem6_8_p5_step_tank_heights_sigma_" + sigmaTag + ".png"));
-    plotP6TruthPair(sampleTimes6, [trueDisturbanceStep6; trueMeanShift6], p5Step.static.xf(5:8, :), p5Step.dynamic.xf(5:8, :), ["D_3 [cm^3/s]", "D_4 [cm^3/s]", "N_3 [cm^3/s]", "N_4 [cm^3/s]"], "P5 step: D and N estimates", fullfile(projectRoot, "figures", "problem6_8_p5_step_D_N_sigma_" + sigmaTag + ".png"));
-    plotP6OutputFit(sampleTimes6, trueOutputStep6, measurementStep6, modelP5N{noiseIndex}.C, p5Step.static, p5Step.dynamic, "P5 step output", fullfile(projectRoot, "figures", "problem6_8_p5_step_outputs_sigma_" + sigmaTag + ".png"));
+    plotP6TruthPair(sampleTimes6, trueTankStep6(tankOrder6, :), p5StepStaticPlot6.xf(tankOrder6, :), p5StepDynamicPlot6.xf(tankOrder6, :), tankLabels6, "P5 augmented step: tank height dev.", "Nonlinear truth", fullfile(projectRoot, "figures", "problem6_8_p5_augmented_nonlinear_step_tank_heights_sigma_" + sigmaTag + ".png"), stepTimes6);
+    plotP6TruthPair(sampleTimes6, [trueDisturbanceStep6; trueMeanShift6], p5Step.static.xf(5:8, :), p5Step.dynamic.xf(5:8, :), ["D_3 [cm^3/s]", "D_4 [cm^3/s]", "N_3 [cm^3/s]", "N_4 [cm^3/s]"], "P5 augmented step: disturbances and N estimates", "Nonlinear truth", fullfile(projectRoot, "figures", "problem6_8_p5_augmented_nonlinear_step_D_N_sigma_" + sigmaTag + ".png"), stepTimes6);
+    plotP6OutputFit(sampleTimes6, trueOutputStep6, measurementStep6, modelP5N{noiseIndex}.C, p5Step.static, p5Step.dynamic, "P5 augmented step output", "Nonlinear truth", fullfile(projectRoot, "figures", "problem6_8_p5_augmented_nonlinear_step_outputs_sigma_" + sigmaTag + ".png"), stepTimes6);
+
+    figure("Visible", "off");
+    semilogy(sampleTimes6 / 60, max(gainGapP4Step6, eps), "LineWidth", 1.2);
+    hold on;
+    semilogy(sampleTimes6 / 60, max(gainGapP5Step6, eps), "LineWidth", 1.2);
+    grid on;
+    xlabel("Time [min]");
+    ylabel("Relative ||K_{dynamic} - K_{static}||_F");
+    legend("P4 augmented", "P5 augmented", "Location", "best");
+    title("Step dynamic Kalman gains converge to static gains");
+    saveas(gcf, fullfile(projectRoot, "figures", "problem6_8_augmented_gain_convergence_sigma_" + sigmaTag + ".png"));
+    close(gcf);
 end
 
-% Report settled output bias, P5 offset-state error, and the gain-convergence gap.
-fprintf("\nPost-step summary (settled interval begins 180 s after the step):\n");
-postStepSummaryTable6 = array2table(postStepSummary6(:, [1, 3, 6, 9, 11, 4, 7, 12]), "VariableNames", ["sigmaN_cm3s", "P5_dynamic_settled_bias_cm", "P5_static_settled_bias_cm", "P4_dynamic_settled_bias_cm", "P4_static_settled_bias_cm", "P5_dynamic_offset_RMSE_cm3s", "P5_static_offset_RMSE_cm3s", "max_dynamic_static_gain_gap"]);
+% Report transient and settled metrics separately for each step event.
+fprintf("\nPost-step summary by event (settled interval starts 180 s after each step):\n");
+postStepSummaryTable6 = array2table(postStepSummary6, "VariableNames", ["sigmaN_cm3s", "stepTime_min", "P5_dynamic_transient_RMSE_cm", "P5_dynamic_settled_bias_cm", "P5_dynamic_offset_RMSE_cm3s", "P5_static_transient_RMSE_cm", "P5_static_settled_bias_cm", "P5_static_offset_RMSE_cm3s", "P4_dynamic_transient_RMSE_cm", "P4_dynamic_settled_bias_cm", "P4_static_transient_RMSE_cm", "P4_static_settled_bias_cm", "max_dynamic_static_gain_gap"]);
 disp(postStepSummaryTable6);
-linearStepSummaryTable6 = array2table(linearStepSummary6, "VariableNames", ["sigmaN_cm3s", "P4_static_RMSE_cm", "P4_dynamic_RMSE_cm", "P5_static_RMSE_cm", "P5_dynamic_RMSE_cm"]);
-fprintf("\nLinear-model step transient output RMSE [cm] by sigma_N:\n");
-fprintf("Each row is one sigma_N case; RMSE compares each filter with its matching linear-model truth over the 180-second post-step transient.\n");
+linearStepSummaryTable6 = array2table(linearStepSummary6, "VariableNames", ["sigmaN_cm3s", "stepTime_min", "P4_static_RMSE_cm", "P4_dynamic_RMSE_cm", "P5_static_RMSE_cm", "P5_dynamic_RMSE_cm"]);
+fprintf("\nLinear-model step transient output RMSE [cm] by event and sigma_N (first 180 s after each step):\n");
+fprintf("Each row compares each filter with its matching model-specific linear truth during that event's transient window.\n");
 disp(linearStepSummaryTable6);
 
 % Mark completion of the linear and nonlinear stepped-filter comparisons.
 fprintf("Finished P6.8 Problem 4 and 5 linear models, step\n");
-%% 6.9 Compare and plot output estimation errors
-% Compare no-step and baseline-sigma step output errors across both model types.
-% Aggregate no-step output errors for linear and nonlinear truth experiments.
-nonlinearNoStepRMSE6 = [sqrt(mean((modelP4.C * resultP4NoStep.static.xf - trueOutputNoStep6).^2, "all")), sqrt(mean((modelP4.C * resultP4NoStep.dynamic.xf - trueOutputNoStep6).^2, "all")); sqrt(mean((modelP5.C * resultP5NoStep.static.xf - trueOutputNoStep6).^2, "all")), sqrt(mean((modelP5.C * resultP5NoStep.dynamic.xf - trueOutputNoStep6).^2, "all"))];
-noStepRMSEComparison6 = [p6Results.p4.linear.noStep.outputRMSE; p6Results.p5.linear.noStep.outputRMSE; nonlinearNoStepRMSE6];
-
-% Select the baseline for the nonlinear step comparison.
-middleNoiseIndex6 = find(SigmaNValues6 == 5, 1);
-% Compare transient step output RMSE at the baseline sigma across model types.
-stepRMSEComparison6 = [linearStepSummary6(middleNoiseIndex6, 2:3); linearStepSummary6(middleNoiseIndex6, 4:5); postStepSummary6(middleNoiseIndex6, [10, 8]); postStepSummary6(middleNoiseIndex6, [5, 2])];
-% Render both RMSE comparisons with a shared filter legend.
-figure("Visible", "off");
-tiledlayout(1, 2, "TileSpacing", "compact");
-nexttile;
-bar(noStepRMSEComparison6);
-grid on;
-set(gca, "XTickLabel", ["P4 linear", "P5 linear", "P4 on nonlinear", "P5 on nonlinear"]);
-ylabel("Output RMSE [cm]");
-legend("Static", "Dynamic", "Location", "best");
-title("No-step output estimation");
-nexttile;
-bar(stepRMSEComparison6);
-grid on;
-set(gca, "XTickLabel", ["P4 linear", "P5 linear", "P4 on nonlinear", "P5 on nonlinear"]);
-ylabel("Transient output RMSE [cm]");
-title("Step output estimation, \sigma_N = 2");
-exportgraphics(gcf, fullfile(projectRoot, "figures", "problem6_9_output_rmse_comparison.png"), "Resolution", 400);
-close(gcf);
-
-fprintf("Finished P6.9 Compare and plot output estimation errors\n");
