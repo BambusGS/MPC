@@ -3,7 +3,9 @@ clear;
 clc;
 close all;
 
-addpath(fullfile(fileparts(mfilename("fullpath")), "functions"));
+projectRoot = fileparts(mfilename("fullpath"));
+addpath(fullfile(projectRoot, "functions"));
+addpath(fullfile(projectRoot, "Problem6_KF_Demo", "functions"));
 % all functions live in the "functions" folder. Pass data in and return data out. Avoid relying on global variables.
 % for some reason you need to run this script with F5, otherwise it does
 %   not find the functions/ folder ¯\_(ツ)_/¯
@@ -44,8 +46,9 @@ plotTankHeights("Problem 2: SDE Disturbances - Tank Heights", sde.t, sdeHeights,
 plotPumpFlow("Problem 2: SDE Disturbances - Pump Inputs", sim.t, sim.input, "figures/problem2_sde_inputs.png", {"F1", "F2"});
 plotPumpFlow("Problem 2: SDE Disturbances - Disturbance Flows", sde.t, sde.d.', "figures/problem2_sde_disturbances.png", {"F3", "F4"});
 
-%% Problem 6, simulate four-tank systems with kalman filters
+%% Problem 6, static and dynamic Kalman filters
 
+run(fullfile(projectRoot, "main_problem6.m"));
 
 %% Problem 7, simple known quadratic program (QP) solver test
 
