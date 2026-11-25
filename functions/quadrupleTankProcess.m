@@ -21,7 +21,6 @@ function xdot = quadrupleTankProcess(~, x, u, d, p)
 
     % Unpack parameters from the parameter structure
     a = p.a; % Pipe cross-sectional areas [cm^2]
-    A = p.A; % Tank cross-sectional areas [cm^2]
     gamma = p.gamma; % Valve positions [-]
     g = p.g; % Acceleration due to gravity [cm/s^2]
     rho = p.rho; % Density of water [g/cm^3]
@@ -35,7 +34,7 @@ function xdot = quadrupleTankProcess(~, x, u, d, p)
     qin(4, 1) = (1 - gamma(1)) * F(1); 
     
     % Outflows from the tanks [cm^3/s]
-    h = m ./ (rho .* A); % Liquid level in each tank [cm]
+    h = tankHeightsFromMasses(m, p);
     qout = a .* sqrt(2 * g * h); % Outflow from each tank [cm3/s]
     % qout = zeros(4, 1);
     % qout(1, 1) = a(1) * sqrt(2 * g * h(1)); 

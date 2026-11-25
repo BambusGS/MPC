@@ -5,16 +5,17 @@ function plotP6OutputFit(t, trueOutput, measuredOutput, C, staticResult, dynamic
     layout = tiledlayout(size(C, 1), 1, "TileSpacing", "compact");
     for i = 1:size(C, 1)
         nexttile;
-        plot(t, trueOutput(i, :), "k-", "LineWidth", 1.2);
+        plot(t / 60, trueOutput(i, :), "-", "LineWidth", 1.2);
         hold on;
-        plot(t, measuredOutput(i, :), ".", "Color", [0.65, 0.65, 0.65], "MarkerSize", 5);
-        plot(t, staticPrediction(i, :), "--", "LineWidth", 1.0);
-        plot(t, dynamicPrediction(i, :), "-", "LineWidth", 1.0);
+        plot(t / 60, measuredOutput(i, :), ".", "MarkerSize", 5);
+        plot(t / 60, staticPrediction(i, :), "--", "LineWidth", 1.0);
+        plot(t / 60, dynamicPrediction(i, :), "-", "LineWidth", 1.0);
         grid on;
-        xlabel("Time [s]");
+        xlabel("Time [min]");
         ylabel(sprintf("Y_%d [cm]", i));
-        legend("True output", "Measured", "Static prediction", "Dynamic prediction", ...
-            "Location", "best");
+        if i == 1
+            legend("Truth", "Measured", "Static", "Dynamic", "Location", "best");
+        end
     end
     title(layout, titleText);
     exportgraphics(gcf, filePath, "Resolution", 400);

@@ -8,10 +8,7 @@ function y = systemSense(x, p)
     % Output:
     %   y: Measured tank 1 and tank 2 heights [cm]
 
-    % Unpack parameters
-    A = p.A;       % Tank areas [cm^2]
-    rho = p.rho;   % Water density [g/cm^3]
-
     % Only tanks 1 and 2 have sensors
-    y = x(1:2) ./ (rho .* A(1:2));
+    heights = tankHeightsFromMasses(x, p);
+    y = heights(1:2);
 end
