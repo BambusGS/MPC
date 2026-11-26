@@ -723,6 +723,9 @@ for i = 1:3
     end
 end
 
+% save it for later use in problem 6
+save("markov.mat","markov")
+
 
 %% Plot Markov parameters for each step size
 

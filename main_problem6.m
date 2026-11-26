@@ -40,36 +40,12 @@ tankLabels6 = ["Tank 3 height dev. [cm]", "Tank 4 height dev. [cm]", "Tank 1 hei
 
 fprintf("Finished P6.1 Setup\n");
 %% 6.2 P4 10% identified model and four-state realization
-% Set the identified transfer gains and shared-pole time constants.
-% The gains are the 10% identified values reported in Chapter 5. The shared time constants are the 10% Problem 4 values reported in Chapter 4.
-K11 = 0.133583;
-K12 = 0.0658997;
-K21 = 0.118038;
-K22 = 0.208652;
-T1 = 85.6311;
-T2 = 114.467;
-T3 = 35.8382;
-T4 = 56.7755;
 
-% Continuous realization of the Chapter 4 shared-pole transfer matrix.
-A4c = diag([-1 / T1, -1 / T2, -1 / T3, -1 / T4]);
-A4c(1, 3) = K12 / T1;
-A4c(2, 4) = K21 / T2;
-B4c = [K11 / T1, 0;
-       0, K22 / T2;
-       0, 1 / T3;
-       1 / T4, 0];
-C4c = [1, 0, 0, 0;
-       0, 1, 0, 0];
-% Discretize the continuous P4 realization at the Problem 6 sampling interval.
-[A4z, B4z] = c2dzoh(A4c, B4c, sim6.Ts);
+% Load CH4 markov parameters
+loadedMarkov = load(fullfile(projectRoot, "markov.mat"), "markov");
+H4transfer = loadedMarkov.markov(:, :, :, 1); % 10% step-size model
 
-
-% Generate Markov parameters and assemble the Hankel matrix and its shift.
 hankelSizeP4 = 44;
-nMarkovP4 = 2 * hankelSizeP4;
-H4transfer = computeMarkovParameters(A4z, B4z, C4c, nMarkovP4);
-
 HankelP4 = zeros(2 * hankelSizeP4);
 HankelShiftP4 = zeros(size(HankelP4));
 
@@ -97,10 +73,6 @@ Sr = diag(sqrt(diag(S4(1:r, 1:r))));
 A4id = diag(1 ./ diag(Sr)) * Ur' * HankelShiftP4 * Vr * diag(1 ./ diag(Sr));
 B4id = Sr * Vr(1:2, :)';
 C4id = Ur(1:2, :) * Sr;
-
-% Check that the identified and discretized P4 models have the same poles.
-assert(norm(sort(eig(A4id)) - sort(eig(A4z)), inf) < 1e-8, "P4 Hankel realization has different poles from the discretized model.");
-
 
 % Define the standard discrete-time Kalman models for P4.
 modelP4.A = A4id;
