@@ -412,6 +412,13 @@ end
 
 disp('Estimated parameters with shared time constants:');
 disp(estimated_params_shared);
+for i = 1:3
+    params = estimated_params_shared(:,i);
+
+    fprintf('\nEstimated parameters for %.0f%% step:\n', step_sizes(i)*100);
+    fprintf('K11 = %.6g, K12 = %.6g, K21 = %.6g, K22 = %.6g\n', params(1:4));
+    fprintf('T1  = %.6g, T2  = %.6g, T3  = %.6g, T4  = %.6g\n', params(5:8));
+end
 
 
 % PLOT THE SHARED MODEL AGAINST THE DETERMINISTIC RESPONSES
@@ -715,6 +722,9 @@ for i = 1:3
         end
     end
 end
+
+% save it for later use in problem 6
+save("markov.mat","markov")
 
 
 %% Plot Markov parameters for each step size
