@@ -414,7 +414,7 @@ for noiseIndex = 1:numel(SigmaNValues6)
     % Save linear-model output-fit figures under their section and sigma names.
     plotP6OutputFit(sampleTimes6, p4LinearOutput, truthP4LinearStep.y, modelP4N.C, p4LinearStep.static, p4LinearStep.dynamic, "P4 augmented step output", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p4_augmented_linear_step_outputs_sigma_" + sigmaTag + ".png"), stepTimes6);
     plotP6OutputFit(sampleTimes6, p5LinearOutput, truthP5LinearStep.y, modelP5N{noiseIndex}.C, p5LinearStep.static, p5LinearStep.dynamic, "P5 augmented step output", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p5_augmented_linear_step_outputs_sigma_" + sigmaTag + ".png"), stepTimes6);
-    plotP6TruthPair(sampleTimes6, truthP4LinearStep.x, p4LinearStep.static.xf, p4LinearStep.dynamic.xf, ["Abstract 1", "Abstract 2", "Abstract 3", "Abstract 4", "Eff. input bias 1", "Eff. input bias 2"], "P4 augmented step: abstract states", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p4_augmented_linear_step_abstract_states_sigma_" + sigmaTag + ".png"), stepTimes6);
+    plotP6TruthPair(sampleTimes6, truthP4LinearStep.x, p4LinearStep.static.xf, p4LinearStep.dynamic.xf, ["Abstract 1", "Abstract 2", "Abstract 3", "Abstract 4", "Dist. integrator 1", "Dist. integrator 2"], "P4 augmented step: abstract states", "Linear truth", fullfile(projectRoot, "figures", "problem6_8_p4_augmented_linear_step_abstract_states_sigma_" + sigmaTag + ".png"), stepTimes6);
 
     p5LinearStepStaticPlot6 = p5LinearStep.static;
     p5LinearStepDynamicPlot6 = p5LinearStep.dynamic;
